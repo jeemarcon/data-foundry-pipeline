@@ -1,15 +1,24 @@
-# Data Foundry Challenge
+# Data Foundry: Event-Driven Data Enrichment Pipeline
 
-Pipeline that scrapes book metadata and PDFs from the [Domínio Público](https://dominiopublico.mec.gov.br/) catalog, extracts and translates descriptions with a vision LLM, and assembles two localized/normalized output datasets.
+Pipeline that scrapes book metadata and PDFs from the [Domínio Público](https://dominiopublico.mec.gov.br/) catalog, Brazil's public domain digital library, extracts and translates descriptions with a vision LLM, and assembles two localized/normalized output datasets.
 
-## Target Areas
+This project started as a data engineering technical challenge. The challenge provided a set of building-block scripts and basic infrastructure; the goal was to turn them into a well-designed pipeline, focusing on engineering decisions rather than the scripts themselves.
 
-This delivery focuses on two of the five target areas defined by the case:
+## What I Built
+
+- **Event-driven orchestration** (`main.py`): a dependency-graph dispatcher that runs independent stages in parallel and, when a stage fails, skips only the stages that depend on it, instead of stopping the whole pipeline.
+- **Data quality layer**: status/reason traceability per record and per stage, validation before data moves downstream, and explicit rules for missing or malformed source data.
+- **Reliability fixes**: rate limiting for LLM calls, a swap of the LLM provider from local Ollama to the Gemini API, and fixes to the base scripts.
+- **Documentation**: Architecture Decision Records and a data quality log describing every issue found, its root cause and the solution applied.
+
+## Focus Areas
+
+The project focuses on two engineering areas:
 
 - **Data Quality**: traceability (status/reason per record, per stage), validation before propagating data downstream, and explicit decisions on how to handle missing or malformed source data. See [`docs/en/data-quality-log.md`](docs/en/data-quality-log.md).
 - **Event-Driven Pipeline**: stages dispatch based on the real dependency graph between them instead of a fixed sequential order, allowing independent stages to run in parallel and isolating failures to only the stages that actually depend on them.
 
-The rationale for this choice, and the target areas considered and set aside, is in [`docs/en/ADR.md`](docs/en/ADR.md) (ADR 001). Both documents are also available in Portuguese, the language they were originally written in, under [`docs/pt/`](docs/pt/).
+The rationale for this choice, and the areas considered and set aside, is in [`docs/en/ADR.md`](docs/en/ADR.md) (ADR 001). Both documents are also available in Portuguese, the language they were originally written in, under [`docs/pt/`](docs/pt/).
 
 ## Requirements
 
