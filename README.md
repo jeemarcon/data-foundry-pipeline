@@ -1,15 +1,24 @@
-# Data Foundry Challenge
+# Data Foundry: Event-Driven Data Enrichment Pipeline
 
-Pipeline that scrapes book metadata and PDFs from the [Domínio Público](https://dominiopublico.mec.gov.br/) catalog, extracts and translates descriptions with a vision LLM, and assembles two localized/normalized output datasets.
+Pipeline that scrapes book metadata and PDFs from the [Domínio Público](https://dominiopublico.mec.gov.br/) catalog, Brazil's public domain digital library, extracts and translates descriptions with a vision LLM, and assembles two localized/normalized output datasets.
 
-## Target Areas
+This project started as a data engineering technical challenge. The challenge provided a set of building-block scripts and basic infrastructure; the goal was to turn them into a well-designed pipeline, focusing on engineering decisions rather than the scripts themselves.
 
-This delivery focuses on two of the five target areas defined by the case:
+## What I Built
+
+- **Event-driven orchestration** (`main.py`): a dependency-graph dispatcher that runs independent stages in parallel and, when a stage fails, skips only the stages that depend on it, instead of stopping the whole pipeline.
+- **Data quality layer**: status/reason traceability per record and per stage, validation before data moves downstream, and explicit rules for missing or malformed source data.
+- **Reliability fixes**: rate limiting for LLM calls, a swap of the LLM provider from local Ollama to the Gemini API, and fixes to the base scripts.
+- **Documentation**: Architecture Decision Records and a data quality log describing every issue found, its root cause and the solution applied.
+
+## Focus Areas
+
+The project focuses on two engineering areas:
 
 - **Data Quality**: traceability (status/reason per record, per stage), validation before propagating data downstream, and explicit decisions on how to handle missing or malformed source data. See [`docs/en/data-quality-log.md`](docs/en/data-quality-log.md).
 - **Event-Driven Pipeline**: stages dispatch based on the real dependency graph between them instead of a fixed sequential order, allowing independent stages to run in parallel and isolating failures to only the stages that actually depend on them.
 
-The rationale for this choice, and the target areas considered and set aside, is in [`docs/en/ADR.md`](docs/en/ADR.md) (ADR 001). Both documents are also available in Portuguese, the language they were originally written in, under [`docs/pt/`](docs/pt/).
+The rationale for this choice, and the areas considered and set aside, is in [`docs/en/ADR.md`](docs/en/ADR.md) (ADR 001). Both documents are also available in Portuguese, the language they were originally written in, under [`docs/pt/`](docs/pt/).
 
 ## Requirements
 
@@ -42,7 +51,7 @@ make setup    # installs dependencies with uv
 make run-all
 ```
 
-Both commands run the same entry point (`src/data_foundry/main.py`) and produce the same output files under `data/output/`. `make run` was validated end-to-end for this delivery; `make run-all` was the primary path used during development, since Docker Desktop was not available on the development machine for most of it (see ADR 002).
+Both commands run the same entry point (`src/data_foundry/main.py`) and produce the same output files under `data/output/`. `make run` was validated end-to-end; `make run-all` was the primary path used during development, since Docker Desktop was not available on the development machine for most of it (see ADR 002).
 
 Individual stages are also available, in case one needs to be inspected or re-run in isolation:
 
@@ -66,7 +75,7 @@ make lint
 
 ## Configuration
 
-The number of books processed is controlled by `MIN_BOOKS` in `src/data_foundry/config.py`, currently set to 10 (the minimum required by the case). Since `data/` is not versioned (it is generated at runtime and listed in `.gitignore`), a fresh clone always produces exactly `MIN_BOOKS` entries on its first run.
+The number of books processed is controlled by `MIN_BOOKS` in `src/data_foundry/config.py`, currently set to 10. Since `data/` is not versioned (it is generated at runtime and listed in `.gitignore`), a fresh clone always produces exactly `MIN_BOOKS` entries on its first run.
 
 ## Architecture
 
@@ -98,14 +107,14 @@ Neither file carries a `status`/`reason` field: a `null` value in a given field 
 
 ## Design Decisions and Trade-offs
 
-Every non-trivial engineering decision made during this delivery, including the ones later reversed, is recorded in two living documents:
+Every non-trivial engineering decision made during development, including the ones later reversed, is recorded in two living documents:
 
 - [`docs/en/ADR.md`](docs/en/ADR.md) ([PT](docs/pt/ADR.md)): architecture-level decisions (target area selection, LLM provider, dispatch mechanism and granularity for the Event-Driven pipeline).
 - [`docs/en/data-quality-log.md`](docs/en/data-quality-log.md) ([PT](docs/pt/data-quality-log.md)): data quality issues found during development, their root cause, and the solution applied to each, including issues found by code review rather than by an observed failure.
 
 Some notable decisions worth highlighting here:
 
-- The scaffold's local Ollama LLM was replaced with the Gemini API, since the development machine did not meet the 16GB RAM the Ollama container requires (ADR 002).
+- The original local Ollama LLM was replaced with the Gemini API, since the development machine did not meet the 16GB RAM the Ollama container requires (ADR 002).
 - Failure in any stage is signaled explicitly (`status`/`reason`, and an aggregated `translation_complete` where applicable) instead of being left as a silent `null`, and that signal is what downstream stages check before processing a record, not just the presence of an output file (DQ-001, DQ-006, DQ-008).
 - A fixed delay between LLM calls was added to stay under the Gemini free tier's rate limit, but it only removes one class of failure (429, quota). A transient provider-side failure (503) is not prevented by that pause: it is deliberately left to be absorbed by the same isolate-and-reprocess model used for every other failure in the pipeline, a more realistic approach for an external dependency than trying to shield against every momentary instability from the provider (DQ-001).
 
