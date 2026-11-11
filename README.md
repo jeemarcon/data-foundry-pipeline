@@ -51,7 +51,7 @@ make setup    # installs dependencies with uv
 make run-all
 ```
 
-Both commands run the same entry point (`src/data_foundry/main.py`) and produce the same output files under `data/output/`. `make run` was validated end-to-end for this delivery; `make run-all` was the primary path used during development, since Docker Desktop was not available on the development machine for most of it (see ADR 002).
+Both commands run the same entry point (`src/data_foundry/main.py`) and produce the same output files under `data/output/`. `make run` was validated end-to-end; `make run-all` was the primary path used during development, since Docker Desktop was not available on the development machine for most of it (see ADR 002).
 
 Individual stages are also available, in case one needs to be inspected or re-run in isolation:
 
@@ -75,7 +75,7 @@ make lint
 
 ## Configuration
 
-The number of books processed is controlled by `MIN_BOOKS` in `src/data_foundry/config.py`, currently set to 10 (the minimum required by the case). Since `data/` is not versioned (it is generated at runtime and listed in `.gitignore`), a fresh clone always produces exactly `MIN_BOOKS` entries on its first run.
+The number of books processed is controlled by `MIN_BOOKS` in `src/data_foundry/config.py`, currently set to 10. Since `data/` is not versioned (it is generated at runtime and listed in `.gitignore`), a fresh clone always produces exactly `MIN_BOOKS` entries on its first run.
 
 ## Architecture
 
@@ -107,14 +107,14 @@ Neither file carries a `status`/`reason` field: a `null` value in a given field 
 
 ## Design Decisions and Trade-offs
 
-Every non-trivial engineering decision made during this delivery, including the ones later reversed, is recorded in two living documents:
+Every non-trivial engineering decision made during development, including the ones later reversed, is recorded in two living documents:
 
 - [`docs/en/ADR.md`](docs/en/ADR.md) ([PT](docs/pt/ADR.md)): architecture-level decisions (target area selection, LLM provider, dispatch mechanism and granularity for the Event-Driven pipeline).
 - [`docs/en/data-quality-log.md`](docs/en/data-quality-log.md) ([PT](docs/pt/data-quality-log.md)): data quality issues found during development, their root cause, and the solution applied to each, including issues found by code review rather than by an observed failure.
 
 Some notable decisions worth highlighting here:
 
-- The scaffold's local Ollama LLM was replaced with the Gemini API, since the development machine did not meet the 16GB RAM the Ollama container requires (ADR 002).
+- The original local Ollama LLM was replaced with the Gemini API, since the development machine did not meet the 16GB RAM the Ollama container requires (ADR 002).
 - Failure in any stage is signaled explicitly (`status`/`reason`, and an aggregated `translation_complete` where applicable) instead of being left as a silent `null`, and that signal is what downstream stages check before processing a record, not just the presence of an output file (DQ-001, DQ-006, DQ-008).
 - A fixed delay between LLM calls was added to stay under the Gemini free tier's rate limit, but it only removes one class of failure (429, quota). A transient provider-side failure (503) is not prevented by that pause: it is deliberately left to be absorbed by the same isolate-and-reprocess model used for every other failure in the pipeline, a more realistic approach for an external dependency than trying to shield against every momentary instability from the provider (DQ-001).
 
